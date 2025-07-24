@@ -16,26 +16,22 @@ test.afterAll(async () => {
 
 test.describe.serial("Create Membership Type", () => {
   var organization = utils.makeid(10);
-  const membership_type = `typeForTest${Math.floor(Math.random() * 100000)}`; //前面建立的假資料有名字重複，所以用隨機數字來避免重複
+  const membership_type = `MembershipTypeForTest${Math.floor(
+    Math.random() * 100000
+  )}`; // Use random number to avoid duplicate names
+  const profile_name = `ProfileNameForTest${Math.floor(
+    Math.random() * 100000
+  )}`; // Use random number to avoid duplicate names
   var element;
-  test("Create Organization Contact", async ({ page }) => {
-    // 1. 進入新增組織頁面 - Navigate via homepage link instead of direct URL
-
+  test("Create Organization Contact", async () => {
     await page.goto("civicrm/contact/add?reset=1&ct=Organization");
-
-    await page.getByRole("link", { name: "New Organization" }).click();
     await utils.wait(wait_secs);
 
-    // Verify form exists
-    await expect(page.locator("form#Contact")).toBeVisible();
-
-    // 2. 點選單位抬頭、輸入隨機名稱並點選儲存
-    await page.getByRole("textbox", { name: "Organization Name" }).click();
+    await page.getByLabel("Organization Name").fill(organization);
     await page
-      .getByRole("textbox", { name: "Organization Name" })
-      .fill(organization);
-    await page.getByRole("button", { name: "Save" }).nth(2).click();
-
+      .locator("form[name=Contact] input[type=submit][value='Save']")
+      .first()
+      .click();
     await utils.wait(wait_secs);
     await expect(page).toHaveTitle(new RegExp("^" + organization));
   });
@@ -77,13 +73,6 @@ test.describe.serial("Create Membership Type", () => {
     await page.locator("#profiles_1").selectOption("4");
     await expect(page.getByRole("dialog")).toBeVisible();
 
-    // element = await utils.findElementByLabel(page, "first_name");
-    // await utils.fillInput(element, firstName);
-    // element = await utils.findElementByLabel(page, "last_name");
-    // await utils.fillInput(element, lastName);
-    // await page.locator("#_qf_Edit_next").click();
-    // await expect(page.locator("#contact_1")).toHaveValue(name);
-
     await page.locator("#first_name").fill(firstName);
     await page.locator("#last_name").fill(lastName);
     await page.locator("#_qf_Edit_next").click();
@@ -106,5 +95,38 @@ test.describe.serial("Create Membership Type", () => {
     await expect(page.locator("#option11>tbody")).toContainText(
       membership_type
     );
+  });
+  test("Create Profile", async ({ page }) => {
+    // go to create profile page
+    await page.goto("/civicrm/admin/uf/group?reset=1");
+    await expect(page).toHaveTitle(/CiviCRM Profile/);
+
+    // create new profile
+    await page.locator("#newCiviCRMProfile-top").click();
+    await expect(page.locator("#Group")).toBeVisible();
+
+    // fill profile name and settings
+    await page.getByRole("textbox", { name: "Profile Name *" }).fill(profile_name);
+    await page.getByRole("checkbox", { name: "Form in Event Registeration" }).uncheck();
+    await page.getByText("Advanced options").click();
+    await page.getByRole("radio", { name: "Account creation required" }).check();
+    await page.locator('[id="_qf_Group_next-bottom"]').click();
+    await expect(page).toHaveTitle(new RegExp(`${profile_name} - CiviCRM Profile Fields`));
+
+    // add first name field
+    await page.locator('[id="field_name[0]"]').selectOption("Individual");
+    await page.getByRole("textbox", { name: "Default - Individual Prefix" }).click();
+    await page.getByRole("option", { name: "Default - First Name" }).click();
+    await page.locator('[id="_qf_Field_next_new-bottom"]').click();
+
+    // add last name field
+    await page.locator('[id="field_name[0]"]').selectOption("Individual");
+    await page.getByRole("textbox", { name: "Default - Individual Prefix" }).click();
+    await page.getByRole("option", { name: "Default - Last Name" }).click();
+    await page.locator('[id="_qf_Field_next-bottom"]').click();
+
+    // verify profile fields are displayed
+    await expect(page.locator("#crm-container")).toContainText("First Name");
+    await expect(page.locator("#crm-container")).toContainText("Last Name");
   });
 });
