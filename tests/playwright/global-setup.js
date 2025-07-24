@@ -1,7 +1,7 @@
 // global-setup.js
-const { expect,chromium } = require('@playwright/test');
+const { expect, chromium } = require("@playwright/test");
 
-module.exports = async config => {
+module.exports = async (config) => {
   const browser = await chromium.launch();
   const page = await browser.newPage();
 
@@ -15,4 +15,5 @@ module.exports = async config => {
   await page.context().storageState({ path: storageState });
   await expect(page).toHaveTitle(/Welcome[^|]+ \| netiCRM/);
   await browser.close();
+  console.log(`Global setup completed. Storage state saved to ${storageState}`);
 };
