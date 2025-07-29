@@ -22,6 +22,9 @@ test.describe.serial("Create Membership Type", () => {
   const profile_name = `ProfileNameForTest${Math.floor(
     Math.random() * 100000
   )}`; // Use random number to avoid duplicate names
+  const contribution_page_name = `ContributionPageNameForTest${Math.floor(
+    Math.random() * 100000
+  )}`; // Use random number to avoid duplicate names
   var element;
   test("Create Organization Contact", async () => {
     await page.goto("civicrm/contact/add?reset=1&ct=Organization");
@@ -106,27 +109,107 @@ test.describe.serial("Create Membership Type", () => {
     await expect(page.locator("#Group")).toBeVisible();
 
     // fill profile name and settings
-    await page.getByRole("textbox", { name: "Profile Name *" }).fill(profile_name);
-    await page.getByRole("checkbox", { name: "Form in Event Registeration" }).uncheck();
+    await page
+      .getByRole("textbox", { name: "Profile Name *" })
+      .fill(profile_name);
+    await page
+      .getByRole("checkbox", { name: "Form in Event Registeration" })
+      .uncheck();
     await page.getByText("Advanced options").click();
-    await page.getByRole("radio", { name: "Account creation required" }).check();
+    await page
+      .getByRole("radio", { name: "Account creation required" })
+      .check();
     await page.locator('[id="_qf_Group_next-bottom"]').click();
-    await expect(page).toHaveTitle(new RegExp(`${profile_name} - CiviCRM Profile Fields`));
+    await expect(page).toHaveTitle(
+      new RegExp(`${profile_name} - CiviCRM Profile Fields`)
+    );
 
     // add first name field
     await page.locator('[id="field_name[0]"]').selectOption("Individual");
-    await page.getByRole("textbox", { name: "Default - Individual Prefix" }).click();
+    await page
+      .getByRole("textbox", { name: "Default - Individual Prefix" })
+      .click();
     await page.getByRole("option", { name: "Default - First Name" }).click();
     await page.locator('[id="_qf_Field_next_new-bottom"]').click();
 
     // add last name field
     await page.locator('[id="field_name[0]"]').selectOption("Individual");
-    await page.getByRole("textbox", { name: "Default - Individual Prefix" }).click();
+    await page
+      .getByRole("textbox", { name: "Default - Individual Prefix" })
+      .click();
     await page.getByRole("option", { name: "Default - Last Name" }).click();
     await page.locator('[id="_qf_Field_next-bottom"]').click();
 
     // verify profile fields are displayed
     await expect(page.locator("#crm-container")).toContainText("First Name");
     await expect(page.locator("#crm-container")).toContainText("Last Name");
+  });
+  test("Create Contribution Page", async ({ page }) => {
+    // go to manage contribution pages
+    await page.goto("/civicrm/admin/contribute/add?reset=1&action=add");
+
+    // create new contribution page
+    await expect(page.locator("#Settings")).toBeVisible();
+
+    // fill title, content and contribution type
+    await page
+      .getByRole("checkbox", { name: "Is this Online Contribution" })
+      .click();
+    await page
+      .getByRole("textbox", { name: "Title *" })
+      .fill(contribution_page_name);
+    await page.getByLabel("Contribution Type *").selectOption("4");
+
+    // go to "Amount" page and configure payment options
+    await page.locator('[id="_qf_Settings_upload-bottom"]').click();
+    await page.waitForTimeout(2000); // 2 second delay
+    await page
+      .getByRole("checkbox", { name: "Contribution Amounts section" })
+      .uncheck();
+    await page
+      .getByRole("checkbox", { name: "Execute real-time monetary" })
+      .uncheck();
+
+    // enable membership section
+    await page.locator('[id="_qf_Amount_upload-bottom"]').click();
+    await page
+      .getByRole("checkbox", { name: "Membership Section Enabled?" })
+      .check();
+
+    // select membership types and require membership signup
+    await page
+      .getByRole("checkbox", { name: membership_type, exact: true })
+      .check();
+    await page
+      .getByRole("checkbox", { name: "Require Membership Signup" })
+      .check();
+    await expect(page.locator("#errorList")).not.toBeVisible();
+
+    // configure thank you page
+    await page.locator('[id="_qf_MembershipBlock_upload-bottom"]').click();
+    await page
+      .getByRole("textbox", { name: "Thank-you Page Title *" })
+      .fill("thank");
+    await expect(
+      page.getByRole("textbox", { name: "Thank-you Page Title *" })
+    ).toHaveValue("thank");
+
+    // go to "Custom Fields" and select profile
+    await page.locator('[id="_qf_ThankYou_upload-bottom"]').click();
+    await page.locator('[id="_qf_Contribute_upload-bottom"]').click();
+    await page.waitForTimeout(2000); // 2 second delay
+    await page.getByLabel("Include Profile(top of page)").selectOption("22");
+    await expect(page.getByLabel("Include Profile(top of page)")).toHaveValue(
+      "22"
+    );
+
+    // complete setup and return to overview
+    await page.locator('[id="_qf_Custom_upload-bottom"]').click();
+    await page.locator('[id="_qf_Premium_upload-bottom"]').click();
+    await page.locator('[id="_qf_Widget_upload-top"]').click();
+    await page.locator('[id="_qf_PCP_upload-top"]').click();
+    await expect(page).toHaveTitle(
+      new RegExp(`Dashlets - ${contribution_page_name}`)
+    );
   });
 });
