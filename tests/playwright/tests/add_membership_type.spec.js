@@ -38,7 +38,6 @@ test.describe.serial("Create Membership Type", () => {
     await utils.wait(wait_secs);
     await expect(page).toHaveTitle(new RegExp("^" + organization));
   });
-
   test("Create Membership Type", async () => {
     await page.goto("civicrm/admin/member/membershipType?action=add&reset=1");
     await utils.wait(wait_secs);
@@ -221,7 +220,7 @@ test.describe.serial("Create Membership Type", () => {
         )
         .click();
     }
-    console.log("創立的表單名字", contribution_page_name);
+
     await expect(page).toHaveTitle(
       new RegExp(`Dashlets - ${contribution_page_name}`)
     );
@@ -239,11 +238,22 @@ test.describe.serial("Create Membership Type", () => {
     ]);
 
     // Fill personal info if not logged in
-    const email = contributionPage.locator("#email-5");
+    const email = contributionPage.getByRole("textbox", {
+      name: "Email Address *",
+    });
     if ((await email.isVisible()) && (await email.isEditable())) {
-      await email.fill("test@example.com");
-      await contributionPage.locator("#first_name").fill("TestFirstName");
-      await contributionPage.locator("#last_name").fill("TestLastName");
+      await contributionPage
+        .getByRole("textbox", {
+          name: "Username *",
+        })
+        .fill("jeeeerryyy");
+      await email.fill("jerrychennnn@gmail.com");
+      await contributionPage
+        .getByRole("textbox", { name: "First Name" })
+        .fill("chenyy");
+      await contributionPage
+        .getByRole("textbox", { name: "Last Name" })
+        .fill("jerryyy");
     }
 
     // Complete form flow
@@ -259,5 +269,48 @@ test.describe.serial("Create Membership Type", () => {
         "Keep supporting it. Payment has not been completed yet with entire process."
       )
     ).toBeVisible();
+  });
+  test("Update Membership Status", async ({ page }) => {
+    await page.goto("/civicrm/contact/search?reset=1");
+
+    await page.getByLabel("Name, Phone or Email").fill("firstName");
+    await page.getByRole("button", { name: "Search" }).click();
+
+    // Click member name, go to details then click "Memberships" - verify URL contains selectedChild=member
+    await page
+      .getByRole("link", { name: "test_firstName test_lastName" })
+      .first()
+      .click();
+    await page.getByRole("link", { name: "Memberships" }).click();
+
+    // Edit membership data, check "Status Override" and select "Current" status
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Status Override?" }).check();
+    await page.getByLabel("Membership Status").selectOption("2"); // Current status
+    await page.locator('[id="_qf_Membership_upload-bottom"]').click();
+
+    // Verify membership status changed from "Pending/Disabled" to "Current"
+    await expect(page.locator(".crm-membership-status")).toContainText(
+      "Current"
+    );
+
+    // Check start and end dates - verify end date is exactly one year from start date
+    const startDateText = await page
+      .locator(".crm-membership-start_date")
+      .textContent();
+    const endDateText = await page
+      .locator(".crm-membership-end_date")
+      .textContent();
+
+    // Verify end date is exactly one year from start date
+    const startDate = new Date(startDateText.trim());
+    const endDate = new Date(endDateText.trim());
+
+    // Calculate expected end date (one year minus one day)
+    const expectedEndDate = new Date(startDate);
+    expectedEndDate.setFullYear(startDate.getFullYear() + 1);
+    expectedEndDate.setDate(expectedEndDate.getDate() - 1);
+
+    expect(endDate.toDateString()).toBe(expectedEndDate.toDateString());
   });
 });
